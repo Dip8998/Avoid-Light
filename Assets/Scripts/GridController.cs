@@ -4,22 +4,43 @@ using UnityEngine.Tilemaps;
 
 public class GridController : MonoBehaviour
 {
-    [SerializeField] private Tilemap obstacleTilemap; 
-    [SerializeField] private Tilemap walkableTilemap; 
-    [SerializeField] private float nodeSize = 1f; 
+    [SerializeField] private Tilemap obstacleTilemap;
+    [SerializeField] private Tilemap walkableTilemap;
+    [SerializeField] private Tile highlightTile;
+    [SerializeField] private float nodeSize = 1f;
 
     private Node[,] grid;
     private Vector2Int gridSize;
+    private Vector3Int highlightedCell;
+    private TileBase originalTile;
+
+    private Vector3Int tempCellPosition;
+    private Vector2Int tempGridPosition;
+    private Node tempNode;
 
     void Start()
     {
         CreateGrid();
+        highlightedCell = new Vector3Int(-1, -1, -1);
+    }
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector3Int clickedCell = walkableTilemap.WorldToCell(mouseWorldPosition);
+
+            if (walkableTilemap.HasTile(clickedCell) && !obstacleTilemap.HasTile(clickedCell))
+            {
+                HighlightTile(clickedCell);
+            }
+        }
     }
 
     private void CreateGrid()
     {
         BoundsInt bounds = walkableTilemap.cellBounds;
-
         gridSize = new Vector2Int(bounds.size.x, bounds.size.y);
         grid = new Node[gridSize.x, gridSize.y];
 
@@ -36,15 +57,27 @@ public class GridController : MonoBehaviour
         }
     }
 
+    private void HighlightTile(Vector3Int cellPosition)
+    {
+        if (highlightedCell != new Vector3Int(-1, -1, -1))
+        {
+            walkableTilemap.SetTile(highlightedCell, originalTile);
+        }
+
+        originalTile = walkableTilemap.GetTile(cellPosition);
+        highlightedCell = cellPosition;
+        walkableTilemap.SetTile(cellPosition, highlightTile);
+    }
+
     public Node GetNodeFromWorldPoint(Vector3 worldPosition)
     {
         Vector3Int cellPosition = walkableTilemap.WorldToCell(worldPosition);
-        int x = cellPosition.x - walkableTilemap.cellBounds.xMin;
-        int y = cellPosition.y - walkableTilemap.cellBounds.yMin;
+        tempGridPosition.x = cellPosition.x - walkableTilemap.cellBounds.xMin;
+        tempGridPosition.y = cellPosition.y - walkableTilemap.cellBounds.yMin;
 
-        if (x >= 0 && x < gridSize.x && y >= 0 && y < gridSize.y)
+        if (tempGridPosition.x >= 0 && tempGridPosition.x < gridSize.x && tempGridPosition.y >= 0 && tempGridPosition.y < gridSize.y)
         {
-            return grid[x, y];
+            return grid[tempGridPosition.x, tempGridPosition.y];
         }
 
         return null;
@@ -58,21 +91,13 @@ public class GridController : MonoBehaviour
         if (startNode == null || targetNode == null || !startNode.isWalkable || !targetNode.isWalkable)
             return null;
 
-        List<Node> openSet = new List<Node>();
+        HashSet<Node> openSet = new HashSet<Node>();
         HashSet<Node> closedSet = new HashSet<Node>();
         openSet.Add(startNode);
 
         while (openSet.Count > 0)
         {
-            Node currentNode = openSet[0];
-            for (int i = 1; i < openSet.Count; i++)
-            {
-                if (openSet[i].FCost < currentNode.FCost || (openSet[i].FCost == currentNode.FCost && openSet[i].hCost < currentNode.hCost))
-                {
-                    currentNode = openSet[i];
-                }
-            }
-
+            Node currentNode = GetNodeWithLowestFCost(openSet);
             openSet.Remove(currentNode);
             closedSet.Add(currentNode);
 
@@ -98,7 +123,20 @@ public class GridController : MonoBehaviour
             }
         }
 
-        return null; 
+        return null;
+    }
+
+    private Node GetNodeWithLowestFCost(HashSet<Node> openSet)
+    {
+        Node lowestCostNode = null;
+        foreach (Node node in openSet)
+        {
+            if (lowestCostNode == null || node.FCost < lowestCostNode.FCost || (node.FCost == lowestCostNode.FCost && node.hCost < lowestCostNode.hCost))
+            {
+                lowestCostNode = node;
+            }
+        }
+        return lowestCostNode;
     }
 
     private List<Node> RetracePath(Node startNode, Node endNode)
@@ -126,30 +164,26 @@ public class GridController : MonoBehaviour
             {
                 if (x == 0 && y == 0) continue;
 
-                int checkX = node.gridPosition.x + x;
-                int checkY = node.gridPosition.y + y;
+                tempGridPosition.x = node.gridPosition.x + x;
+                tempGridPosition.y = node.gridPosition.y + y;
 
-                if (checkX >= 0 && checkX < gridSize.x && checkY >= 0 && checkY < gridSize.y)
+                if (tempGridPosition.x >= 0 && tempGridPosition.x < gridSize.x && tempGridPosition.y >= 0 && tempGridPosition.y < gridSize.y)
                 {
-                    Node neighbor = grid[checkX, checkY];
+                    tempNode = grid[tempGridPosition.x, tempGridPosition.y];
 
                     if (x != 0 && y != 0)
                     {
-                        Node node1 = grid[node.gridPosition.x, checkY]; 
-                        Node node2 = grid[checkX, node.gridPosition.y]; 
-
-                        if (!node1.isWalkable || !node2.isWalkable)
-                            continue; 
+                        if (!grid[node.gridPosition.x, tempGridPosition.y].isWalkable || !grid[tempGridPosition.x, node.gridPosition.y].isWalkable)
+                            continue;
                     }
 
-                    neighbors.Add(neighbor);
+                    neighbors.Add(tempNode);
                 }
             }
         }
 
         return neighbors;
     }
-
 
     private int GetDistance(Node a, Node b)
     {
@@ -158,4 +192,3 @@ public class GridController : MonoBehaviour
         return 14 * Mathf.Min(distX, distY) + 10 * Mathf.Abs(distX - distY);
     }
 }
-

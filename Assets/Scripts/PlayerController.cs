@@ -6,13 +6,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private GridController gridController;
 
-    private List<Node> path;       
-    private int currentPathIndex; 
+    private List<Node> path;
+    private int currentPathIndex;
     private bool isMoving = false;
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0)) 
         {
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector3 targetPosition = new Vector3(mousePosition.x, mousePosition.y, 0);
@@ -21,8 +21,8 @@ public class PlayerController : MonoBehaviour
 
             if (path != null && path.Count > 0)
             {
-                currentPathIndex = 0; 
-                isMoving = true;     
+                currentPathIndex = 0;
+                isMoving = true;
             }
         }
 
@@ -44,7 +44,7 @@ public class PlayerController : MonoBehaviour
 
         if (Vector2.Distance(transform.position, currentNode.worldPosition) < 0.1f)
         {
-            currentPathIndex++; 
+            currentPathIndex++;
 
             if (currentPathIndex >= path.Count)
             {
