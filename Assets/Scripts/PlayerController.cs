@@ -5,14 +5,38 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private GridController gridController;
+    [SerializeField] private int maxHealth = 100;
 
+    private int currentHealth;
     private List<Node> path;
     private int currentPathIndex;
     private bool isMoving = false;
 
+    void Start()
+    {
+        currentHealth = maxHealth; 
+    }
+
+    public void TakeDamage(int damage)
+    {
+        currentHealth -= damage;
+        Debug.Log($"Player Health: {currentHealth}");
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        Debug.Log("Player has died.");
+        Destroy(gameObject);
+    }
+
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) 
+        if (Input.GetMouseButtonDown(0))
         {
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector3 targetPosition = new Vector3(mousePosition.x, mousePosition.y, 0);

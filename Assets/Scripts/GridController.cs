@@ -7,10 +7,9 @@ public class GridController : MonoBehaviour
     [SerializeField] private Tilemap obstacleTilemap;
     [SerializeField] private Tilemap walkableTilemap;
     [SerializeField] private Tile highlightTile;
-    [SerializeField] private float nodeSize = 1f;
 
-    private Node[,] grid;
-    private Vector2Int gridSize;
+    public Node[,] grid;
+    public Vector2Int gridSize;
     private Vector3Int highlightedCell;
     private TileBase originalTile;
 
@@ -37,7 +36,15 @@ public class GridController : MonoBehaviour
             }
         }
     }
+    public Vector2Int GridSize
+    {
+        get { return gridSize; }
+    }
 
+    public Node[,] Grid
+    {
+        get { return grid; }
+    }
     private void CreateGrid()
     {
         BoundsInt bounds = walkableTilemap.cellBounds;
@@ -67,6 +74,20 @@ public class GridController : MonoBehaviour
         originalTile = walkableTilemap.GetTile(cellPosition);
         highlightedCell = cellPosition;
         walkableTilemap.SetTile(cellPosition, highlightTile);
+    }
+
+    public Vector2Int GetGridSize()
+    {
+        return gridSize;
+    }
+
+    public Node GetNode(int x, int y)
+    {
+        if (x >= 0 && x < gridSize.x && y >= 0 && y < gridSize.y)
+        {
+            return grid[x, y];
+        }
+        return null;
     }
 
     public Node GetNodeFromWorldPoint(Vector3 worldPosition)
