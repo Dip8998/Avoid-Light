@@ -4,8 +4,10 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private ScoreController scoreController;
     [SerializeField] private GridController gridController;
     [SerializeField] private int maxHealth = 100;
+    [SerializeField] private GameObject gameOverPanel;
 
     private int currentHealth;
     private List<Node> path;
@@ -14,13 +16,14 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        currentHealth = maxHealth; 
+        currentHealth = maxHealth;
+        scoreController.SetMaxHealth(maxHealth);
     }
 
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
-        Debug.Log($"Player Health: {currentHealth}");
+        scoreController.UpdateHealth(currentHealth); 
 
         if (currentHealth <= 0)
         {
@@ -28,10 +31,11 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void Die()
+    public void Die()
     {
-        Debug.Log("Player has died.");
         Destroy(gameObject);
+        gameOverPanel.SetActive(true);
+        Time.timeScale = 0f;
     }
 
     void Update()
@@ -75,5 +79,9 @@ public class PlayerController : MonoBehaviour
                 isMoving = false;
             }
         }
+    }
+    public void PickUpKey()
+    {
+        scoreController.IncreaseScore(1);
     }
 }

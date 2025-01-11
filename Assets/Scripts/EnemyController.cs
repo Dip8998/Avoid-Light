@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-
 public class EnemyController : MonoBehaviour
 {
     [SerializeField] private GridController gridController;
@@ -12,15 +11,16 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private LayerMask detectionLayer;
     [SerializeField] private LineRenderer viewLineRenderer;
     [SerializeField] private float shootingInterval = 1f;
-    [SerializeField] private GameObject bulletPrefab; 
-    [SerializeField] private Transform bulletSpawnPoint; 
+    [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private Transform bulletSpawnPoint;
     [SerializeField] private float bulletSpeed = 10f;
 
     private List<Node> path;
     private int currentPatrolIndex = 0;
     private int currentTargetIndex;
-    private bool isShooting = false;
     private float lastShotTime;
+    private bool isShooting = false;
+    private float playerLostTime;
 
     void Start()
     {
@@ -38,12 +38,22 @@ public class EnemyController : MonoBehaviour
         if (PlayerInFieldOfView())
         {
             StopPatrolling();
+            isShooting = true;
             ShootPlayer();
+            playerLostTime = Time.time;
         }
         else
         {
-            isShooting = false;
-            Patrol();
+            if (isShooting && Time.time - playerLostTime >= 2f)
+            {
+                isShooting = false;
+                StartPatrolling();
+            }
+
+            if (!isShooting)
+            {
+                Patrol();
+            }
         }
 
         DrawFieldOfView();
@@ -103,6 +113,10 @@ public class EnemyController : MonoBehaviour
 
     private bool PlayerInFieldOfView()
     {
+        if (player == null)
+        {
+            return false;
+        }
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
@@ -112,19 +126,11 @@ public class EnemyController : MonoBehaviour
 
             if (angleToPlayer <= lightAngle / 2)
             {
-                Vector2 direction2D = new Vector2(directionToPlayer.x, directionToPlayer.y);
-                RaycastHit2D hit = Physics2D.Raycast(transform.position, direction2D, lightDetectionRadius, detectionLayer);
+                RaycastHit2D hit = Physics2D.Raycast(transform.position, directionToPlayer, lightDetectionRadius, detectionLayer);
 
                 if (hit.collider != null && hit.collider.transform == player)
                 {
-                    Vector2 directionToObstacle = (player.position - transform.position).normalized;
-                    float distanceToObstacle = Vector2.Distance(transform.position, hit.point);
-                    RaycastHit2D obstacleHit = Physics2D.Raycast(transform.position, directionToObstacle, distanceToObstacle, detectionLayer);
-
-                    if (obstacleHit.collider == null)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
         }
@@ -133,23 +139,23 @@ public class EnemyController : MonoBehaviour
 
     private void ShootPlayer()
     {
-        if (Time.time - lastShotTime >= shootingInterval)
+        if (player == null || Time.time - lastShotTime < shootingInterval)
         {
-            lastShotTime = Time.time;
+            return;
+        }
 
-            GameObject bullet = Instantiate(bulletPrefab, bulletSpawnPoint.position, Quaternion.identity);
+        lastShotTime = Time.time;
 
-            Vector3 directionToPlayer = (player.position - bulletSpawnPoint.position).normalized;
-            float angle = Mathf.Atan2(directionToPlayer.y, directionToPlayer.x) * Mathf.Rad2Deg;
-            bullet.transform.rotation = Quaternion.Euler(0, 0, angle);
+        GameObject bullet = Instantiate(bulletPrefab, bulletSpawnPoint.position, Quaternion.identity);
 
-            Rigidbody2D rb = bullet.GetComponent<Rigidbody2D>();
-            if (rb != null)
-            {
-                rb.velocity = directionToPlayer * bulletSpeed;
-            }
+        Vector3 directionToPlayer = (player.position - bulletSpawnPoint.position).normalized;
+        float angle = Mathf.Atan2(directionToPlayer.y, directionToPlayer.x) * Mathf.Rad2Deg;
+        bullet.transform.rotation = Quaternion.Euler(0, 0, angle);
 
-            Debug.Log("Enemy shot a bullet at the player.");
+        Rigidbody2D rb = bullet.GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.velocity = directionToPlayer * bulletSpeed;
         }
     }
 
@@ -172,5 +178,14 @@ public class EnemyController : MonoBehaviour
 
         viewLineRenderer.positionCount = points.Count;
         viewLineRenderer.SetPositions(points.ToArray());
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        PlayerController playerController = collision.gameObject.GetComponent<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.Die();
+        }
     }
 }

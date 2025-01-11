@@ -7,6 +7,8 @@ public class GridController : MonoBehaviour
     [SerializeField] private Tilemap obstacleTilemap;
     [SerializeField] private Tilemap walkableTilemap;
     [SerializeField] private Tile highlightTile;
+    [SerializeField] private GameObject collectiblePrefab; 
+    [SerializeField] private int collectibleCount = 10; 
 
     public Node[,] grid;
     public Vector2Int gridSize;
@@ -20,6 +22,7 @@ public class GridController : MonoBehaviour
     void Start()
     {
         CreateGrid();
+        SpawnCollectibles(); 
         highlightedCell = new Vector3Int(-1, -1, -1);
     }
 
@@ -36,15 +39,7 @@ public class GridController : MonoBehaviour
             }
         }
     }
-    public Vector2Int GridSize
-    {
-        get { return gridSize; }
-    }
 
-    public Node[,] Grid
-    {
-        get { return grid; }
-    }
     private void CreateGrid()
     {
         BoundsInt bounds = walkableTilemap.cellBounds;
@@ -75,6 +70,43 @@ public class GridController : MonoBehaviour
         highlightedCell = cellPosition;
         walkableTilemap.SetTile(cellPosition, highlightTile);
     }
+
+    private void SpawnCollectibles()
+    {
+        HashSet<Vector3Int> usedPositions = new HashSet<Vector3Int>();
+
+        int attempts = 0; 
+        for (int i = 0; i < collectibleCount; i++)
+        {
+            Vector3Int randomCellPosition = Vector3Int.zero;
+            bool positionFound = false;
+
+            while (!positionFound && attempts < 100) 
+            {
+                attempts++;
+
+                int randomX = Random.Range(walkableTilemap.cellBounds.xMin, walkableTilemap.cellBounds.xMax);
+                int randomY = Random.Range(walkableTilemap.cellBounds.yMin, walkableTilemap.cellBounds.yMax);
+                randomCellPosition = new Vector3Int(randomX, randomY, 0);
+
+                if (walkableTilemap.HasTile(randomCellPosition) &&
+                    !obstacleTilemap.HasTile(randomCellPosition) &&
+                    !usedPositions.Contains(randomCellPosition))
+                {
+                    positionFound = true;
+                    usedPositions.Add(randomCellPosition);
+                }
+            }
+
+            if (positionFound)
+            {
+                Vector3 spawnPosition = walkableTilemap.GetCellCenterWorld(randomCellPosition);
+                Instantiate(collectiblePrefab, spawnPosition, Quaternion.identity);
+            }
+        }
+    }
+
+
 
     public Vector2Int GetGridSize()
     {
