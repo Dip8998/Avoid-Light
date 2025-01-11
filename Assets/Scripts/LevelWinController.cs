@@ -6,8 +6,8 @@ using UnityEngine.UI;
 
 public class LevelWinController : MonoBehaviour
 {
-    public Button restartButton;
-    public Button nextLevelButton;
+    [SerializeField] private Button restartButton;
+    [SerializeField] private Button nextLevelButton;
 
 
     private void Awake()

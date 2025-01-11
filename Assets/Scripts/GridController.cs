@@ -7,22 +7,18 @@ public class GridController : MonoBehaviour
     [SerializeField] private Tilemap obstacleTilemap;
     [SerializeField] private Tilemap walkableTilemap;
     [SerializeField] private Tile highlightTile;
-    [SerializeField] private GameObject collectiblePrefab; 
-    [SerializeField] private int collectibleCount = 10; 
+    [SerializeField] private GameObject collectiblePrefab;
+    [SerializeField] private int collectibleCount = 10;
 
     public Node[,] grid;
     public Vector2Int gridSize;
     private Vector3Int highlightedCell;
     private TileBase originalTile;
 
-    private Vector3Int tempCellPosition;
-    private Vector2Int tempGridPosition;
-    private Node tempNode;
-
-    void Start()
+    private void Start()
     {
         CreateGrid();
-        SpawnCollectibles(); 
+        SpawnCollectibles();
         highlightedCell = new Vector3Int(-1, -1, -1);
     }
 
@@ -75,38 +71,25 @@ public class GridController : MonoBehaviour
     {
         HashSet<Vector3Int> usedPositions = new HashSet<Vector3Int>();
 
-        int attempts = 0; 
-        for (int i = 0; i < collectibleCount; i++)
+        int attempts = 0;
+        while (usedPositions.Count < collectibleCount && attempts < 100)
         {
-            Vector3Int randomCellPosition = Vector3Int.zero;
-            bool positionFound = false;
+            attempts++;
+            Vector3Int randomCellPosition = new Vector3Int(
+                Random.Range(walkableTilemap.cellBounds.xMin, walkableTilemap.cellBounds.xMax),
+                Random.Range(walkableTilemap.cellBounds.yMin, walkableTilemap.cellBounds.yMax),
+                0);
 
-            while (!positionFound && attempts < 100) 
+            if (walkableTilemap.HasTile(randomCellPosition) &&
+                !obstacleTilemap.HasTile(randomCellPosition) &&
+                !usedPositions.Contains(randomCellPosition))
             {
-                attempts++;
-
-                int randomX = Random.Range(walkableTilemap.cellBounds.xMin, walkableTilemap.cellBounds.xMax);
-                int randomY = Random.Range(walkableTilemap.cellBounds.yMin, walkableTilemap.cellBounds.yMax);
-                randomCellPosition = new Vector3Int(randomX, randomY, 0);
-
-                if (walkableTilemap.HasTile(randomCellPosition) &&
-                    !obstacleTilemap.HasTile(randomCellPosition) &&
-                    !usedPositions.Contains(randomCellPosition))
-                {
-                    positionFound = true;
-                    usedPositions.Add(randomCellPosition);
-                }
-            }
-
-            if (positionFound)
-            {
+                usedPositions.Add(randomCellPosition);
                 Vector3 spawnPosition = walkableTilemap.GetCellCenterWorld(randomCellPosition);
                 Instantiate(collectiblePrefab, spawnPosition, Quaternion.identity);
             }
         }
     }
-
-
 
     public Vector2Int GetGridSize()
     {
@@ -125,15 +108,7 @@ public class GridController : MonoBehaviour
     public Node GetNodeFromWorldPoint(Vector3 worldPosition)
     {
         Vector3Int cellPosition = walkableTilemap.WorldToCell(worldPosition);
-        tempGridPosition.x = cellPosition.x - walkableTilemap.cellBounds.xMin;
-        tempGridPosition.y = cellPosition.y - walkableTilemap.cellBounds.yMin;
-
-        if (tempGridPosition.x >= 0 && tempGridPosition.x < gridSize.x && tempGridPosition.y >= 0 && tempGridPosition.y < gridSize.y)
-        {
-            return grid[tempGridPosition.x, tempGridPosition.y];
-        }
-
-        return null;
+        return GetNode(cellPosition.x - walkableTilemap.cellBounds.xMin, cellPosition.y - walkableTilemap.cellBounds.yMin);
     }
 
     public List<Node> FindPath(Vector3 startPos, Vector3 targetPos)
@@ -169,9 +144,7 @@ public class GridController : MonoBehaviour
                     neighbor.gCost = newCostToNeighbor;
                     neighbor.hCost = GetDistance(neighbor, targetNode);
                     neighbor.parent = currentNode;
-
-                    if (!openSet.Contains(neighbor))
-                        openSet.Add(neighbor);
+                    openSet.Add(neighbor);
                 }
             }
         }
@@ -184,7 +157,8 @@ public class GridController : MonoBehaviour
         Node lowestCostNode = null;
         foreach (Node node in openSet)
         {
-            if (lowestCostNode == null || node.FCost < lowestCostNode.FCost || (node.FCost == lowestCostNode.FCost && node.hCost < lowestCostNode.hCost))
+            if (lowestCostNode == null || node.FCost < lowestCostNode.FCost ||
+                (node.FCost == lowestCostNode.FCost && node.hCost < lowestCostNode.hCost))
             {
                 lowestCostNode = node;
             }
@@ -217,20 +191,17 @@ public class GridController : MonoBehaviour
             {
                 if (x == 0 && y == 0) continue;
 
-                tempGridPosition.x = node.gridPosition.x + x;
-                tempGridPosition.y = node.gridPosition.y + y;
+                int neighborX = node.gridPosition.x + x;
+                int neighborY = node.gridPosition.y + y;
 
-                if (tempGridPosition.x >= 0 && tempGridPosition.x < gridSize.x && tempGridPosition.y >= 0 && tempGridPosition.y < gridSize.y)
+                if (neighborX >= 0 && neighborX < gridSize.x && neighborY >= 0 && neighborY < gridSize.y)
                 {
-                    tempNode = grid[tempGridPosition.x, tempGridPosition.y];
-
-                    if (x != 0 && y != 0)
+                    Node neighborNode = grid[neighborX, neighborY];
+                    if (!(x != 0 && y != 0) ||
+                        (grid[node.gridPosition.x, neighborY].isWalkable && grid[neighborX, node.gridPosition.y].isWalkable))
                     {
-                        if (!grid[node.gridPosition.x, tempGridPosition.y].isWalkable || !grid[tempGridPosition.x, node.gridPosition.y].isWalkable)
-                            continue;
+                        neighbors.Add(neighborNode);
                     }
-
-                    neighbors.Add(tempNode);
                 }
             }
         }

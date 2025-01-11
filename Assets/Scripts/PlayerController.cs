@@ -12,7 +12,7 @@ public class PlayerController : MonoBehaviour
     private int currentHealth;
     private List<Node> path;
     private int currentPathIndex;
-    private bool isMoving = false;
+    private bool isMoving;
 
     void Start()
     {
@@ -23,7 +23,7 @@ public class PlayerController : MonoBehaviour
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
-        scoreController.UpdateHealth(currentHealth); 
+        scoreController.UpdateHealth(currentHealth);
 
         if (currentHealth <= 0)
         {
@@ -40,11 +40,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        HandleMovement();
+    }
+
+    private void HandleMovement()
+    {
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            Vector3 targetPosition = new Vector3(mousePosition.x, mousePosition.y, 0);
-
+            Vector3 targetPosition = GetMouseWorldPosition();
             path = gridController.FindPath(transform.position, targetPosition);
 
             if (path != null && path.Count > 0)
@@ -60,6 +63,12 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private Vector3 GetMouseWorldPosition()
+    {
+        Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        return new Vector3(mousePosition.x, mousePosition.y, 0);
+    }
+
     private void MoveAlongPath()
     {
         Node currentNode = path[currentPathIndex];
@@ -68,18 +77,18 @@ public class PlayerController : MonoBehaviour
         transform.position = Vector2.MoveTowards(transform.position, currentNode.worldPosition, moveSpeed * Time.deltaTime);
 
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(new Vector3(0, 0, angle));
+        transform.rotation = Quaternion.Euler(0, 0, angle);
 
         if (Vector2.Distance(transform.position, currentNode.worldPosition) < 0.1f)
         {
             currentPathIndex++;
-
             if (currentPathIndex >= path.Count)
             {
                 isMoving = false;
             }
         }
     }
+
     public void PickUpKey()
     {
         scoreController.IncreaseScore(1);

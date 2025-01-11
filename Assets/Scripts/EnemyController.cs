@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+
 public class EnemyController : MonoBehaviour
 {
     [SerializeField] private GridController gridController;
@@ -17,14 +18,30 @@ public class EnemyController : MonoBehaviour
 
     private List<Node> path;
     private int currentPatrolIndex = 0;
-    private int currentTargetIndex;
+    private int currentTargetIndex = 0;
     private float lastShotTime;
     private bool isShooting = false;
     private float playerLostTime;
 
     void Start()
     {
-        StartPatrolling();
+        InitializePatrolPath();
+        InitializeViewLineRenderer();
+    }
+
+    void Update()
+    {
+        HandlePlayerDetection();
+        DrawFieldOfView();
+    }
+
+    private void InitializePatrolPath()
+    {
+        UpdatePatrolPath();
+    }
+
+    private void InitializeViewLineRenderer()
+    {
         if (viewLineRenderer != null)
         {
             viewLineRenderer.positionCount = 0;
@@ -33,51 +50,37 @@ public class EnemyController : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-        if (PlayerInFieldOfView())
-        {
-            StopPatrolling();
-            isShooting = true;
-            ShootPlayer();
-            playerLostTime = Time.time;
-        }
-        else
-        {
-            if (isShooting && Time.time - playerLostTime >= 2f)
-            {
-                isShooting = false;
-                StartPatrolling();
-            }
-
-            if (!isShooting)
-            {
-                Patrol();
-            }
-        }
-
-        DrawFieldOfView();
-    }
-
-    private void StartPatrolling()
-    {
-        UpdatePatrolPath();
-    }
-
-    private void StopPatrolling()
-    {
-        path = null;
-    }
-
     private void UpdatePatrolPath()
     {
         path = gridController.FindPath(transform.position, patrolPoints[currentPatrolIndex].position);
-        currentTargetIndex = 0;
+    }
+
+    private void HandlePlayerDetection()
+    {
+        if (PlayerInFieldOfView())
+        {
+            if (!isShooting)
+            {
+                StopPatrolling();
+                isShooting = true;
+                ShootPlayer();
+            }
+            playerLostTime = Time.time;
+        }
+        else if (isShooting && Time.time - playerLostTime >= 2f)
+        {
+            isShooting = false;
+            StartPatrolling();
+        }
+        else if (!isShooting)
+        {
+            Patrol();
+        }
     }
 
     private void Patrol()
     {
-        if (path != null && path.Count > 0 && currentTargetIndex < path.Count)
+        if (path != null && currentTargetIndex < path.Count)
         {
             MoveAlongPath();
         }
@@ -85,22 +88,21 @@ public class EnemyController : MonoBehaviour
         {
             currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
             UpdatePatrolPath();
+            currentTargetIndex = 0;
         }
     }
 
     private void MoveAlongPath()
     {
-        if (path != null && path.Count > 0 && currentTargetIndex < path.Count)
-        {
-            Node targetNode = path[currentTargetIndex];
-            Vector3 targetPosition = targetNode.worldPosition;
-            RotateTowards(targetPosition);
-            transform.position = Vector3.MoveTowards(transform.position, targetPosition, patrolSpeed * Time.deltaTime);
+        Node targetNode = path[currentTargetIndex];
+        Vector3 targetPosition = targetNode.worldPosition;
 
-            if (Vector3.Distance(transform.position, targetPosition) < 0.1f)
-            {
-                currentTargetIndex++;
-            }
+        RotateTowards(targetPosition);
+        transform.position = Vector3.MoveTowards(transform.position, targetPosition, patrolSpeed * Time.deltaTime);
+
+        if (Vector3.Distance(transform.position, targetPosition) < 0.1f)
+        {
+            currentTargetIndex++;
         }
     }
 
@@ -113,25 +115,18 @@ public class EnemyController : MonoBehaviour
 
     private bool PlayerInFieldOfView()
     {
-        if (player == null)
-        {
-            return false;
-        }
+        if (player == null) return false;
+
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
         if (distanceToPlayer <= lightDetectionRadius)
         {
             float angleToPlayer = Vector3.Angle(transform.right, directionToPlayer);
-
             if (angleToPlayer <= lightAngle / 2)
             {
                 RaycastHit2D hit = Physics2D.Raycast(transform.position, directionToPlayer, lightDetectionRadius, detectionLayer);
-
-                if (hit.collider != null && hit.collider.transform == player)
-                {
-                    return true;
-                }
+                return hit.collider != null && hit.collider.transform == player;
             }
         }
         return false;
@@ -139,15 +134,11 @@ public class EnemyController : MonoBehaviour
 
     private void ShootPlayer()
     {
-        if (player == null || Time.time - lastShotTime < shootingInterval)
-        {
-            return;
-        }
+        if (player == null || Time.time - lastShotTime < shootingInterval) return;
 
         lastShotTime = Time.time;
 
         GameObject bullet = Instantiate(bulletPrefab, bulletSpawnPoint.position, Quaternion.identity);
-
         Vector3 directionToPlayer = (player.position - bulletSpawnPoint.position).normalized;
         float angle = Mathf.Atan2(directionToPlayer.y, directionToPlayer.x) * Mathf.Rad2Deg;
         bullet.transform.rotation = Quaternion.Euler(0, 0, angle);
@@ -178,6 +169,16 @@ public class EnemyController : MonoBehaviour
 
         viewLineRenderer.positionCount = points.Count;
         viewLineRenderer.SetPositions(points.ToArray());
+    }
+
+    private void StopPatrolling()
+    {
+        path = null;
+    }
+
+    private void StartPatrolling()
+    {
+        UpdatePatrolPath();
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
