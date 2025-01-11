@@ -23,6 +23,3 @@ This game features an enemy NPC that patrols between waypoints, shoots at the pl
 
 ## Gameplay Video
 [https://drive.google.com/file/d/1JeABlV1pCf52s7Bi24RbEIpmMTlyfoyS/view?usp=sharing]
-
-## Installation
-1. Clone the repository:
